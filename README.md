@@ -32,6 +32,14 @@ Run the controller app with:
 python sticknav.py
 ```
 
+Open the settings editor GUI with:
+
+```bash
+python sticknav.py --gui
+```
+
+The GUI saves your changes to a JSON file named sticknav_settings.json in the repository root.
+
 ## Development
 To run the repository smoke tests:
 
