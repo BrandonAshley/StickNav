@@ -2,7 +2,7 @@ from pathlib import Path
 
 from sticknav_config import default_settings, load_settings, save_settings
 from settings_gui import FIELD_DEFINITIONS, SettingsEditor
-from sticknav import apply_button_actions, normalize_action_name, resolve_button_input_index, resolve_vk_name
+from sticknav import apply_button_actions, normalize_action_name, resolve_button_input_index, resolve_vk_name, trigger_action
 
 
 def test_settings_round_trip(tmp_path: Path) -> None:
@@ -167,6 +167,20 @@ def test_resolve_vk_name_supports_modifiers() -> None:
     assert resolve_vk_name("windows") == 0x5B
     assert resolve_vk_name("alt") == 0x12
     assert resolve_vk_name("shift") == 0x10
+
+
+def test_trigger_action_supports_key_combinations(monkeypatch) -> None:
+    events = []
+
+    monkeypatch.setattr("sticknav.press_named_key", lambda name: events.append(("press", name)))
+    monkeypatch.setattr("sticknav.release_named_key", lambda name: events.append(("release", name)))
+
+    trigger_action("KEY_SHIFT+KEY_C", True)
+    assert events == [("press", "SHIFT"), ("press", "C")]
+
+    events.clear()
+    trigger_action("KEY_SHIFT+KEY_C", False)
+    assert events == [("release", "C"), ("release", "SHIFT")]
 
 
 def test_apply_button_actions_dispatches_configured_actions(monkeypatch) -> None:
