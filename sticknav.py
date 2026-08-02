@@ -5,6 +5,7 @@ import math
 import threading
 import time
 from pathlib import Path
+from tkinter import messagebox
 
 import pygame
 
@@ -222,6 +223,19 @@ def release_named_key(name):
     send_virtual_key(vk, False)
 
 
+def split_action_keys(action):
+    if action is None or not isinstance(action, str):
+        return []
+
+    normalized = normalize_action_name(action)
+    if not normalized or not normalized.startswith("KEY_"):
+        return []
+
+    raw = normalized[4:]
+    parts = [part.strip() for part in raw.split("+") if part.strip()]
+    return [part[4:] if part.startswith("KEY_") else part for part in parts]
+
+
 def trigger_action(action, pressed):
     if action is None:
         return
@@ -237,11 +251,16 @@ def trigger_action(action, pressed):
         else:
             release_button(button_name)
     elif normalized.startswith("KEY_"):
-        key_name = normalized[4:]
+        key_names = split_action_keys(action)
+        if not key_names:
+            key_names = [normalized[4:]]
+
         if pressed:
-            press_named_key(key_name)
+            for key_name in key_names:
+                press_named_key(key_name)
         else:
-            release_named_key(key_name)
+            for key_name in reversed(key_names):
+                release_named_key(key_name)
 
 
 def apply_button_actions(settings, joystick, button_states, settings_editor=None, hat_state=None):
@@ -287,15 +306,20 @@ def apply_button_actions(settings, joystick, button_states, settings_editor=None
 
 
 def run_controller(settings, config_path=None, settings_editor=None):
-    pygame.init()
-    pygame.joystick.init()
+    try:
+        pygame.init()
+        pygame.joystick.init()
 
-    if pygame.joystick.get_count() == 0:
-        raise RuntimeError("No controller detected.")
+        if pygame.joystick.get_count() == 0:
+            raise RuntimeError("No controller detected. Connect a supported controller and try again.")
 
-    joystick = pygame.joystick.Joystick(0)
-    joystick.init()
-    print(f"Using controller: {joystick.get_name()}")
+        joystick = pygame.joystick.Joystick(0)
+        joystick.init()
+        print(f"Using controller: {joystick.get_name()}")
+    except Exception as exc:
+        if settings_editor is not None:
+            settings_editor.root.after(0, lambda: messagebox.showwarning("Controller unavailable", str(exc)))
+        return
 
     clock = pygame.time.Clock()
     left_pressed = False
@@ -487,6 +511,10 @@ def run_controller(settings, config_path=None, settings_editor=None):
             if not (settings_editor is not None and settings_editor.is_visible() and settings_editor.is_capturing()):
                 apply_button_actions(settings, joystick, button_states, settings_editor, hat)
     except KeyboardInterrupt:
+        pygame.quit()
+    except Exception as exc:
+        if settings_editor is not None:
+            settings_editor.root.after(0, lambda: messagebox.showwarning("Controller error", f"StickNav stopped because of an unexpected controller error:\n{exc}"))
         pygame.quit()
 
 

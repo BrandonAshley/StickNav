@@ -143,6 +143,21 @@ def test_capture_mode_assigns_input_value() -> None:
     assert editor.variables["LEFT_CLICK_BUTTON_INDEX"].value == "3"
 
 
+def test_cancel_capture_clears_pending_field() -> None:
+    editor = SettingsEditor.__new__(SettingsEditor)
+    editor.pending_capture_field = "LEFT_CLICK_BUTTON_INDEX"
+    editor._capture_timeout_id = None
+    editor.capture_cancel_button = None
+    editor._stop_capture_listeners = lambda: None
+    editor._update_capture_button_state = lambda: None
+    editor.root = type("FakeRoot", (), {"after_cancel": lambda self, _id: None})()
+    editor.status_var = type("FakeVar", (), {"set": lambda self, value: setattr(self, "value", value)})()
+
+    editor.cancel_capture()
+
+    assert editor.pending_capture_field is None
+
+
 def test_coerce_value_accepts_keyboard_and_mouse_actions() -> None:
     editor = SettingsEditor.__new__(SettingsEditor)
     key_var = type("FakeVar", (), {"get": lambda self: "KEY_SHIFT"})()

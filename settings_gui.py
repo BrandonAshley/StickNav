@@ -108,6 +108,8 @@ class SettingsEditor:
         self.pending_capture_field: str | None = None
         self._keyboard_listener: Any | None = None
         self._mouse_listener: Any | None = None
+        self._capture_timeout_id: Any | None = None
+        self.capture_cancel_button: ttk.Button | None = None
         self.status_var = tk.StringVar(value="Select a setting and use Capture to assign controller input.")
         self._build_ui()
         self.hide()
@@ -162,8 +164,12 @@ class SettingsEditor:
 
         actions = ttk.Frame(container, padding=(0, 8))
         actions.pack(fill="x")
-        ttk.Label(actions, textvariable=self.status_var).pack(side="left")
+        ttk.Label(actions, textvariable=self.status_var).pack(side="left", fill="x", expand=True)
+        self.capture_cancel_button = ttk.Button(actions, text="Cancel Capture", command=self.cancel_capture)
+        self.capture_cancel_button.pack(side="right", padx=(6, 0))
+        ttk.Button(actions, text="Reset Defaults", command=self.reset_to_defaults).pack(side="right", padx=(6, 0))
         ttk.Button(actions, text="Save", command=self.on_save).pack(side="right")
+        self._update_capture_button_state()
 
     def _format_setting_value(self, field_name: str, value: Any) -> str:
         if isinstance(value, str):
@@ -215,17 +221,48 @@ class SettingsEditor:
     def _set_active_field(self, field_name: str) -> None:
         self.active_field = field_name
 
+    def _update_capture_button_state(self) -> None:
+        capture_button = getattr(self, "capture_cancel_button", None)
+        if capture_button is None:
+            return
+        if self.is_capturing():
+            capture_button.state(["!disabled"])
+        else:
+            capture_button.state(["disabled"])
+
     def start_capture(self, field_name: str) -> None:
         self.pending_capture_field = field_name
+        self._capture_timeout_id = getattr(self, "_capture_timeout_id", None)
         self._start_capture_listeners()
         label = next((label for name, label, _, _ in FIELD_DEFINITIONS if name == field_name), field_name)
-        self.status_var.set(f"Waiting for input for {label}...")
+        self.status_var.set(f"Waiting for input for {label}... Press a key or mouse button. Capture will timeout after 10 seconds.")
+        self._update_capture_button_state()
+        if self._capture_timeout_id is not None:
+            self.root.after_cancel(self._capture_timeout_id)
+        self._capture_timeout_id = self.root.after(10000, self._timeout_capture)
 
     def clear_capture(self) -> None:
+        timeout_id = getattr(self, "_capture_timeout_id", None)
+        if timeout_id is not None:
+            self.root.after_cancel(timeout_id)
+            self._capture_timeout_id = None
         self.pending_capture_field = None
         self._stop_capture_listeners()
+        self._update_capture_button_state()
         if getattr(self, "status_var", None) is not None:
             self.status_var.set("Select a setting and use Capture to assign controller input.")
+
+    def cancel_capture(self) -> None:
+        self.clear_capture()
+        if getattr(self, "status_var", None) is not None:
+            self.status_var.set("Capture cancelled. Try again when you are ready.")
+
+    def _timeout_capture(self) -> None:
+        if self.pending_capture_field is None:
+            return
+        self.clear_capture()
+        if getattr(self, "status_var", None) is not None:
+            self.status_var.set("Capture timed out. Try again or choose a different field.")
 
     def capture_controller_input(self, value: Any) -> None:
         if self.pending_capture_field is None:
@@ -344,6 +381,25 @@ class SettingsEditor:
             self.hide()
         else:
             self.show()
+
+    def reset_to_defaults(self) -> None:
+        if not messagebox.askyesno("Reset defaults", "Reset all settings to their default values?"):
+            return
+        from sticknav_config import default_settings
+
+        defaults = default_settings()
+        for name, _, kind, default in FIELD_DEFINITIONS:
+            if name in self.variables:
+                if kind is bool:
+                    self.variables[name].set(bool(defaults.get(name, default)))
+                else:
+                    initial = defaults.get(name, default)
+                    if initial is None:
+                        self.variables[name].set("")
+                    else:
+                        self.variables[name].set(str(self._format_setting_value(name, initial)))
+        self._apply_settings(persist=False)
+        self.status_var.set("Defaults restored. Click Save to persist them to disk.")
 
     def on_save(self) -> None:
         if self._apply_settings(persist=True):
