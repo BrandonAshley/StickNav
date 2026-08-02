@@ -2,7 +2,7 @@ from pathlib import Path
 
 from sticknav_config import default_settings, load_settings, save_settings
 from settings_gui import FIELD_DEFINITIONS, SettingsEditor
-from sticknav import apply_button_actions, resolve_button_input_index
+from sticknav import apply_button_actions, normalize_action_name, resolve_button_input_index, resolve_vk_name
 
 
 def test_settings_round_trip(tmp_path: Path) -> None:
@@ -155,6 +155,18 @@ def test_coerce_value_accepts_keyboard_and_mouse_actions() -> None:
 def test_resolve_button_input_index_uses_defaults_for_action_strings() -> None:
     assert resolve_button_input_index("LB_BUTTON_INDEX", "KEY_RIGHT", 4) == 4
     assert resolve_button_input_index("RB_BUTTON_INDEX", "KEY_LEFT", 5) == 5
+
+
+def test_normalize_action_name_handles_key_and_mouse_actions() -> None:
+    assert normalize_action_name("key_windows") == "KEY_WINDOWS"
+    assert normalize_action_name("MOUSE_LEFT") == "MOUSE_LEFT"
+    assert normalize_action_name("  key_alt  ") == "KEY_ALT"
+
+
+def test_resolve_vk_name_supports_modifiers() -> None:
+    assert resolve_vk_name("windows") == 0x5B
+    assert resolve_vk_name("alt") == 0x12
+    assert resolve_vk_name("shift") == 0x10
 
 
 def test_apply_button_actions_dispatches_configured_actions(monkeypatch) -> None:

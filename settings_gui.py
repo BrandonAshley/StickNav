@@ -12,6 +12,53 @@ except ImportError:  # pragma: no cover - optional dependency at runtime
 
 from sticknav_config import CONFIG_PATH, load_settings, save_settings
 
+BUTTON_FIELD_NAMES = (
+    "LEFT_CLICK_BUTTON_INDEX",
+    "RIGHT_CLICK_BUTTON_INDEX",
+    "X_BUTTON_INDEX",
+    "Y_BUTTON_INDEX",
+    "LB_BUTTON_INDEX",
+    "RB_BUTTON_INDEX",
+    "SELECT_BUTTON_INDEX",
+    "L3_BUTTON_INDEX",
+    "R3_BUTTON_INDEX",
+    "DPAD_UP_BUTTON_INDEX",
+    "DPAD_DOWN_BUTTON_INDEX",
+    "DPAD_LEFT_BUTTON_INDEX",
+    "DPAD_RIGHT_BUTTON_INDEX",
+)
+
+SPECIAL_KEY_NAMES = {
+    "shift": "KEY_SHIFT",
+    "shift_l": "KEY_SHIFT",
+    "shift_r": "KEY_SHIFT",
+    "ctrl": "KEY_CTRL",
+    "ctrl_l": "KEY_CTRL",
+    "ctrl_r": "KEY_CTRL",
+    "alt": "KEY_ALT",
+    "alt_l": "KEY_ALT",
+    "alt_gr": "KEY_ALT",
+    "alt_r": "KEY_ALT",
+    "tab": "KEY_TAB",
+    "enter": "KEY_ENTER",
+    "backspace": "KEY_BACKSPACE",
+    "escape": "KEY_ESCAPE",
+    "space": "KEY_SPACE",
+    "up": "KEY_UP",
+    "down": "KEY_DOWN",
+    "left": "KEY_LEFT",
+    "right": "KEY_RIGHT",
+    "cmd": "KEY_WINDOWS",
+    "cmd_l": "KEY_WINDOWS",
+    "cmd_r": "KEY_WINDOWS",
+    "super": "KEY_WINDOWS",
+    "super_l": "KEY_WINDOWS",
+    "super_r": "KEY_WINDOWS",
+    "win": "KEY_WINDOWS",
+    "windows": "KEY_WINDOWS",
+    "meta": "KEY_WINDOWS",
+}
+
 FIELD_DEFINITIONS: List[Tuple[str, str, type, Any]] = [
     ("DEAD_ZONE", "Dead zone", float, 0.22),
     ("RIGHT_STICK_DEAD_ZONE", "Right stick dead zone", float, 0.18),
@@ -121,7 +168,7 @@ class SettingsEditor:
     def _format_setting_value(self, field_name: str, value: Any) -> str:
         if isinstance(value, str):
             return value
-        if field_name in {"LEFT_CLICK_BUTTON_INDEX", "RIGHT_CLICK_BUTTON_INDEX", "X_BUTTON_INDEX", "Y_BUTTON_INDEX", "LB_BUTTON_INDEX", "RB_BUTTON_INDEX", "SELECT_BUTTON_INDEX", "L3_BUTTON_INDEX", "R3_BUTTON_INDEX", "DPAD_UP_BUTTON_INDEX", "DPAD_DOWN_BUTTON_INDEX", "DPAD_LEFT_BUTTON_INDEX", "DPAD_RIGHT_BUTTON_INDEX"}:
+        if field_name in BUTTON_FIELD_NAMES:
             if isinstance(value, (int, float)):
                 return str(int(value))
             return str(value)
@@ -131,7 +178,7 @@ class SettingsEditor:
         if kind is bool:
             return bool(variable.get())
 
-        raw_value = variable.get().strip()
+        raw_value = str(variable.get()).strip()
         if raw_value == "" and kind in {int, float}:
             return None
         if kind is int:
@@ -235,37 +282,7 @@ class SettingsEditor:
             return f"KEY_{char.upper()}"
 
         name = str(key).replace("Key.", "").replace("'", "").lower()
-        special_names = {
-            "shift": "KEY_SHIFT",
-            "shift_l": "KEY_SHIFT",
-            "shift_r": "KEY_SHIFT",
-            "ctrl": "KEY_CTRL",
-            "ctrl_l": "KEY_CTRL",
-            "ctrl_r": "KEY_CTRL",
-            "alt": "KEY_ALT",
-            "alt_l": "KEY_ALT",
-            "alt_gr": "KEY_ALT",
-            "alt_r": "KEY_ALT",
-            "tab": "KEY_TAB",
-            "enter": "KEY_ENTER",
-            "backspace": "KEY_BACKSPACE",
-            "escape": "KEY_ESCAPE",
-            "space": "KEY_SPACE",
-            "up": "KEY_UP",
-            "down": "KEY_DOWN",
-            "left": "KEY_LEFT",
-            "right": "KEY_RIGHT",
-            "cmd": "KEY_WINDOWS",
-            "cmd_l": "KEY_WINDOWS",
-            "cmd_r": "KEY_WINDOWS",
-            "super": "KEY_WINDOWS",
-            "super_l": "KEY_WINDOWS",
-            "super_r": "KEY_WINDOWS",
-            "win": "KEY_WINDOWS",
-            "windows": "KEY_WINDOWS",
-            "meta": "KEY_WINDOWS",
-        }
-        return special_names.get(name)
+        return SPECIAL_KEY_NAMES.get(name)
 
     def _handle_mouse_click(self, x: int, y: int, button: Any, pressed: bool) -> None:
         if not pressed or self.pending_capture_field is None:

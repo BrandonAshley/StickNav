@@ -112,6 +112,27 @@ BUTTON_INDEX_BY_FIELD = {
     "DPAD_RIGHT_BUTTON_INDEX": None,
 }
 
+BUTTON_BINDING_FIELDS = (
+    "LEFT_CLICK_BUTTON_INDEX",
+    "RIGHT_CLICK_BUTTON_INDEX",
+    "X_BUTTON_INDEX",
+    "Y_BUTTON_INDEX",
+    "LB_BUTTON_INDEX",
+    "RB_BUTTON_INDEX",
+    "SELECT_BUTTON_INDEX",
+    "L3_BUTTON_INDEX",
+    "R3_BUTTON_INDEX",
+)
+
+DPAD_BINDING_FIELDS = (
+    "DPAD_UP_BUTTON_INDEX",
+    "DPAD_DOWN_BUTTON_INDEX",
+    "DPAD_LEFT_BUTTON_INDEX",
+    "DPAD_RIGHT_BUTTON_INDEX",
+)
+
+BUTTON_STATE_FIELDS = BUTTON_BINDING_FIELDS + DPAD_BINDING_FIELDS
+
 
 def resolve_button_input_index(field_name, configured_value, default_index):
     if isinstance(configured_value, str) and configured_value.strip():
@@ -127,11 +148,24 @@ def resolve_button_input_index(field_name, configured_value, default_index):
     return BUTTON_INDEX_BY_FIELD.get(field_name, default_index)
 
 
+def normalize_action_name(action):
+    if action is None or not isinstance(action, str):
+        return None
+
+    normalized = action.strip().upper()
+    if normalized.startswith("KEY_") or normalized.startswith("MOUSE_"):
+        return normalized
+
+    if normalized in {"SHIFT", "CTRL", "ALT", "WIN", "WINDOWS", "ENTER", "SPACE", "TAB", "BACKSPACE", "ESCAPE", "UP", "DOWN", "LEFT", "RIGHT"}:
+        return f"KEY_{normalized}"
+
+    return normalized
+
+
 def resolve_button_action(field_name, configured_value):
-    if isinstance(configured_value, str) and configured_value.strip():
-        normalized = configured_value.strip().upper()
-        if normalized.startswith("KEY_") or normalized.startswith("MOUSE_"):
-            return normalized
+    normalized = normalize_action_name(configured_value)
+    if normalized is not None and (normalized.startswith("KEY_") or normalized.startswith("MOUSE_")):
+        return normalized
     if field_name == "LEFT_CLICK_BUTTON_INDEX":
         return "MOUSE_LEFT"
     if field_name == "RIGHT_CLICK_BUTTON_INDEX":
@@ -191,7 +225,11 @@ def release_named_key(name):
 def trigger_action(action, pressed):
     if action is None:
         return
-    normalized = action.strip().upper()
+
+    normalized = normalize_action_name(action)
+    if normalized is None:
+        return
+
     if normalized.startswith("MOUSE_"):
         button_name = normalized[6:].lower()
         if pressed:
@@ -207,7 +245,7 @@ def trigger_action(action, pressed):
 
 
 def apply_button_actions(settings, joystick, button_states, settings_editor=None, hat_state=None):
-    for field_name in ("LEFT_CLICK_BUTTON_INDEX", "RIGHT_CLICK_BUTTON_INDEX", "X_BUTTON_INDEX", "Y_BUTTON_INDEX", "LB_BUTTON_INDEX", "RB_BUTTON_INDEX", "SELECT_BUTTON_INDEX", "L3_BUTTON_INDEX", "R3_BUTTON_INDEX"):
+    for field_name in BUTTON_BINDING_FIELDS:
         configured_value = settings.get(field_name, BUTTON_INDEX_BY_FIELD[field_name])
         button_index = resolve_button_input_index(field_name, configured_value, BUTTON_INDEX_BY_FIELD[field_name])
         if button_index is None:
@@ -265,21 +303,7 @@ def run_controller(settings, config_path=None, settings_editor=None):
     left_click_start = 0.0
     left_click_start_pos = None
     left_click_dragging = False
-    button_states = {
-        "LEFT_CLICK_BUTTON_INDEX": False,
-        "RIGHT_CLICK_BUTTON_INDEX": False,
-        "X_BUTTON_INDEX": False,
-        "Y_BUTTON_INDEX": False,
-        "LB_BUTTON_INDEX": False,
-        "RB_BUTTON_INDEX": False,
-        "SELECT_BUTTON_INDEX": False,
-        "L3_BUTTON_INDEX": False,
-        "R3_BUTTON_INDEX": False,
-        "DPAD_UP_BUTTON_INDEX": False,
-        "DPAD_DOWN_BUTTON_INDEX": False,
-        "DPAD_LEFT_BUTTON_INDEX": False,
-        "DPAD_RIGHT_BUTTON_INDEX": False,
-    }
+    button_states = {field_name: False for field_name in BUTTON_STATE_FIELDS}
     hold_time_x = 0.0
     hold_time_y = 0.0
     last_dir_x = 0
